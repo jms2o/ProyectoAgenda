@@ -55,3 +55,26 @@ Variables soportadas:
    - `www.tudominio.com`
 2. Verifica SSL activo en Hostinger.
 3. Confirma que login y logout funcionen en el dominio final.
+
+## Seguridad recomendada (admin)
+
+Este proyecto incluye reglas endurecidas en `firestore.rules`.
+
+1. Pega el contenido en Firebase:
+   - Firebase Console > Firestore Database > Rules > Publish.
+2. Asigna claim de admin al usuario autorizado.
+
+Ejemplo con `firebase-admin` (ejecutar una sola vez):
+
+```js
+import { initializeApp, cert } from 'firebase-admin/app'
+import { getAuth } from 'firebase-admin/auth'
+import serviceAccount from './service-account.json' assert { type: 'json' }
+
+initializeApp({ credential: cert(serviceAccount) })
+
+await getAuth().setCustomUserClaims('UID_DEL_ADMIN', { admin: true })
+console.log('Claim admin asignado')
+```
+
+Nota: despues de asignar claims, cierra sesion y vuelve a iniciar para refrescar token.

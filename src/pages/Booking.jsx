@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Check, CheckCircle2, ArrowLeft, Calendar, ArrowRight, Sparkles, Bot, BarChart3, PlayCircle, Mail, Phone, MessageCircle, MapPin } from 'lucide-react';
-import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 // 1. Importamos las herramientas de animación
 import { motion, AnimatePresence } from 'framer-motion';
@@ -118,33 +118,51 @@ export default function Booking() {
     }
   ];
 
+  const buildTimeSlots = (startTime, endTime, durationMinutes) => {
+    const slots = [];
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    let currentMins = (startH * 60) + startM;
+    const endMins = (endH * 60) + endM;
+
+    while (currentMins + durationMinutes <= endMins) {
+      const h = Math.floor(currentMins / 60).toString().padStart(2, '0');
+      const m = (currentMins % 60).toString().padStart(2, '0');
+      slots.push(`${h}:${m}`);
+      currentMins += durationMinutes;
+    }
+
+    return slots;
+  };
+
   useEffect(() => {
     const loadAvailableTimes = async () => {
+      const defaultStart = "09:00";
+      const defaultEnd = "18:00";
+      const defaultDuration = 60;
+
       try {
         const settingsSnap = await getDoc(doc(db, "settings", "general"));
-        let start = "09:00";
-        let end = "18:00";
-        let duration = 60;
+        let start = defaultStart;
+        let end = defaultEnd;
+        let duration = defaultDuration;
 
         if (settingsSnap.exists()) {
           const data = settingsSnap.data();
-          start = data.startTime;
-          end = data.endTime;
-          duration = data.duration;
+          start = typeof data.startTime === 'string' ? data.startTime : defaultStart;
+          end = typeof data.endTime === 'string' ? data.endTime : defaultEnd;
+
+          const parsedDuration = Number(data.duration);
+          duration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : defaultDuration;
         }
 
-        const slots = [];
-        let [startH, startM] = start.split(':').map(Number);
-        let [endH, endM] = end.split(':').map(Number);
+        let slots = buildTimeSlots(start, end, duration);
 
-        let currentMins = startH * 60 + startM;
-        const endMins = endH * 60 + endM;
-
-        while (currentMins + duration <= endMins) {
-          const h = Math.floor(currentMins / 60).toString().padStart(2, '0');
-          const m = (currentMins % 60).toString().padStart(2, '0');
-          slots.push(`${h}:${m}`);
-          currentMins += duration;
+        if (slots.length === 0) {
+          start = defaultStart;
+          end = defaultEnd;
+          duration = defaultDuration;
+          slots = buildTimeSlots(start, end, duration);
         }
 
         setTimes(slots);
@@ -153,6 +171,9 @@ export default function Booking() {
         setLoadingHours(false);
       } catch (error) {
         console.error("Error al cargar horarios:", error);
+        setTimes(buildTimeSlots(defaultStart, defaultEnd, defaultDuration));
+        setSlotDuration(defaultDuration);
+        setWorkingHours({ start: defaultStart, end: defaultEnd });
         setLoadingHours(false);
       }
     };
@@ -166,16 +187,30 @@ export default function Booking() {
       return;
     }
 
+    const payload = {
+      clientName: formData.name.trim(),
+      clientEmail: formData.email.trim().toLowerCase(),
+      company: formData.company.trim(),
+      whatsapp: formData.whatsapp.trim(),
+      businessType: formData.businessType.trim(),
+      notes: formData.notes.trim(),
+      date: selectedDay.label,
+      dateISO: selectedDay.id,
+      time: selectedTime,
+      status: 'Pendiente',
+      createdAt: serverTimestamp()
+    };
+
     try {
-      await addDoc(collection(db, "appointments"), {
-        clientName: formData.name, clientEmail: formData.email, company: formData.company,
-        whatsapp: formData.whatsapp, businessType: formData.businessType, notes: formData.notes,
-        date: selectedDay.label, dateISO: selectedDay.id, time: selectedTime, status: 'Pendiente', createdAt: new Date()
-      });
+      await addDoc(collection(db, "appointments"), payload);
       setStep(3); 
     } catch (error) {
       console.error("Error al guardar la cita:", error);
-      alert("Hubo un problema al agendar. Intenta de nuevo.");
+      if (error?.code === 'permission-denied') {
+        alert("No hay permisos para guardar citas. Revisa las reglas de Firestore.");
+      } else {
+        alert("Hubo un problema al agendar. Intenta de nuevo.");
+      }
     }
   };
 

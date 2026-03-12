@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { useNavigate } from 'react-router-dom'
+import { getIdTokenResult, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { auth } from '../config/firebase'
 
 const getAuthErrorMessage = (code) => {
@@ -41,7 +41,15 @@ export default function Login() {
     setIsSubmitting(true)
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password)
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password)
+      const tokenResult = await getIdTokenResult(userCredential.user, true)
+
+      if (tokenResult?.claims?.admin !== true) {
+        await signOut(auth)
+        setError('Este usuario no tiene permisos de administrador.')
+        return
+      }
+
       navigate('/dashboard', { replace: true })
     } catch (authError) {
       console.error('Error al iniciar sesión:', authError)
@@ -49,10 +57,6 @@ export default function Login() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  if (auth.currentUser) {
-    return <Navigate to="/dashboard" replace />
   }
 
   return (
