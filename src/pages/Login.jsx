@@ -4,6 +4,10 @@ import { getIdTokenResult, signInWithEmailAndPassword, signOut } from 'firebase/
 import { auth } from '../config/firebase'
 
 const getAuthErrorMessage = (code) => {
+  if ((code || '').includes('api-key-not-valid')) {
+    return 'API key inválida. Revisa la configuración de Firebase del proyecto.'
+  }
+
   switch (code) {
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
