@@ -237,12 +237,114 @@ export default function Booking() {
     exit: { opacity: 0, x: -20 }    // Sale hacia la izquierda desvaneciéndose
   };
 
+  const getBookingDateRange = () => {
+    if (!selectedDay?.id || !selectedTime) {
+      return null;
+    }
+
+    const [year, month, day] = selectedDay.id.split('-').map(Number);
+    const [hours, minutes] = selectedTime.split(':').map(Number);
+
+    if ([year, month, day, hours, minutes].some((value) => Number.isNaN(value))) {
+      return null;
+    }
+
+    const start = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    const end = new Date(start.getTime() + (slotDuration * 60 * 1000));
+
+    return { start, end };
+  };
+
+  const formatCalendarDate = (date) => (
+    `${date.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`
+  );
+
+  const getCalendarEventInfo = () => {
+    const title = formData.company?.trim()
+      ? `Asesoría QDS - ${formData.company.trim()}`
+      : 'Asesoría QDS';
+
+    const details = [
+      formData.name ? `Cliente: ${formData.name}` : null,
+      formData.email ? `Correo: ${formData.email}` : null,
+      formData.whatsapp ? `WhatsApp: ${formData.whatsapp}` : null,
+      formData.notes ? `Notas: ${formData.notes}` : null
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    return {
+      title,
+      details: details || 'Cita agendada desde agenda-qds.',
+      location: 'Chihuahua, México'
+    };
+  };
+
+  const handleAddToGoogleCalendar = () => {
+    const dateRange = getBookingDateRange();
+    if (!dateRange) {
+      return;
+    }
+
+    const { title, details, location } = getCalendarEventInfo();
+    const start = formatCalendarDate(dateRange.start);
+    const end = formatCalendarDate(dateRange.end);
+
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${encodeURIComponent(`${start}/${end}`)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const escapeICSValue = (value) => (
+    value
+      .replace(/\\/g, '\\\\')
+      .replace(/\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;')
+  );
+
+  const handleAddToAppleCalendar = () => {
+    const dateRange = getBookingDateRange();
+    if (!dateRange) {
+      return;
+    }
+
+    const { title, details, location } = getCalendarEventInfo();
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'CALSCALE:GREGORIAN',
+      'PRODID:-//Agenda QDS//Booking//ES',
+      'BEGIN:VEVENT',
+      `UID:${Date.now()}@agenda-qds`,
+      `DTSTAMP:${formatCalendarDate(new Date())}`,
+      `DTSTART:${formatCalendarDate(dateRange.start)}`,
+      `DTEND:${formatCalendarDate(dateRange.end)}`,
+      `SUMMARY:${escapeICSValue(title)}`,
+      `DESCRIPTION:${escapeICSValue(details)}`,
+      `LOCATION:${escapeICSValue(location)}`,
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const calendarFileUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = calendarFileUrl;
+    link.download = `cita-qds-${selectedDay.id}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(calendarFileUrl);
+  };
+
+  const canAddCalendar = Boolean(getBookingDateRange());
+
   return (
-    <div className="min-h-screen bg-bgBase flex flex-col items-center p-6">
+    <div className="min-h-screen bg-bgBase flex flex-col items-center p-4 sm:p-6">
       <div className="max-w-6xl w-full">
         
-        <header className="flex justify-between items-center py-6 mb-12 md:mb-20">
-          <div className="text-4xl font-bold tracking-tighter text-primary">QDS<span className="text-textMuted text-lg">.</span></div>
+        <header className="flex justify-between items-center py-6 mb-10 md:mb-20">
+          <div className="text-3xl sm:text-4xl font-bold tracking-tighter text-primary">QDS<span className="text-textMuted text-lg">.</span></div>
           <nav className="hidden md:flex items-center gap-1 p-1 rounded-full border border-gray-200 bg-surface/90 shadow-sm">
             {navItems.map((item) => {
               const isActive = activeNavItem === item.id;
@@ -271,7 +373,7 @@ export default function Booking() {
           </nav>
         </header>
 
-        <main className="relative grid lg:grid-cols-[1.05fr_0.95fr] gap-12 xl:gap-20 items-start">
+        <main className="relative grid lg:grid-cols-[1.05fr_0.95fr] gap-8 lg:gap-12 xl:gap-20 items-start">
           <div className="pointer-events-none absolute -left-20 top-6 h-60 w-60 rounded-full bg-primary/[0.06] blur-3xl" />
           <div className="pointer-events-none absolute right-0 top-44 h-48 w-48 rounded-full bg-gray-300/40 blur-3xl" />
 
@@ -281,13 +383,13 @@ export default function Booking() {
               Asesoría sin costo
             </div>
 
-            <h1 className="text-5xl lg:text-6xl font-medium text-primary leading-[1.05] tracking-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-medium text-primary leading-[1.05] tracking-tight break-words">
               Digitaliza tu negocio
               <br className="hidden lg:block" />
               con <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-gray-500">software a medida</span>
             </h1>
 
-            <p className="text-textMuted text-lg max-w-xl leading-relaxed">
+            <p className="text-textMuted text-base sm:text-lg max-w-xl leading-relaxed">
               Agenda una asesoría gratuita y descubre cómo automatizar citas, clientes y ventas en una plataforma simple y lista para crecer contigo.
             </p>
 
@@ -302,24 +404,24 @@ export default function Booking() {
 
             <div className="grid sm:grid-cols-2 gap-3 max-w-xl">
               {heroBenefits.map((benefit) => (
-                <div key={benefit} className="flex items-center gap-2.5 bg-surface border border-gray-100 rounded-xl px-3 py-2.5 text-sm font-medium text-textMain shadow-sm">
+                <div key={benefit} className="min-w-0 flex items-center gap-2.5 bg-surface border border-gray-100 rounded-xl px-3 py-2.5 text-sm font-medium text-textMain shadow-sm">
                   <Check size={16} className="text-primary shrink-0" />
-                  {benefit}
+                  <span className="break-words">{benefit}</span>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-3 gap-3 max-w-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl">
               <div className="bg-surface border border-gray-100 rounded-xl px-3 py-3">
-                <p className="text-xs uppercase tracking-wide text-textMuted mb-1">Respuesta</p>
+                <p className="text-[11px] uppercase tracking-wide text-textMuted mb-1">Respuesta</p>
                 <p className="text-sm font-semibold text-primary">24 horas</p>
               </div>
               <div className="bg-surface border border-gray-100 rounded-xl px-3 py-3">
-                <p className="text-xs uppercase tracking-wide text-textMuted mb-1">Implementación</p>
+                <p className="text-[11px] uppercase tracking-wide text-textMuted mb-1">Implementación</p>
                 <p className="text-sm font-semibold text-primary">Desde 7 días</p>
               </div>
               <div className="bg-surface border border-gray-100 rounded-xl px-3 py-3">
-                <p className="text-xs uppercase tracking-wide text-textMuted mb-1">Demo</p>
+                <p className="text-[11px] uppercase tracking-wide text-textMuted mb-1">Demo</p>
                 <p className="text-sm font-semibold text-primary">{slotDuration} min</p>
               </div>
             </div>
@@ -431,17 +533,17 @@ export default function Booking() {
                      <h3 className="text-xl font-medium text-primary">Completa tu reserva</h3>
                    </div>
 
-                   <div className="mb-6 rounded-xl border border-gray-100 bg-bgBase/70 px-3 py-2.5 text-sm text-textMuted flex items-center gap-2">
+                   <div className="mb-6 rounded-xl border border-gray-100 bg-bgBase/70 px-3 py-2.5 text-sm text-textMuted flex flex-col sm:flex-row sm:items-center gap-2">
                      <Calendar size={16} className="text-primary" />
                      {selectedDay ? selectedDay.label : 'Fecha por definir'} · {selectedTime}
                    </div>
                    
                    <form onSubmit={handleConfirm} className="space-y-4 flex-1">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Nombre" required className="w-full bg-bgBase p-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
                         <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" required className="w-full bg-bgBase p-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <input type="text" name="company" value={formData.company} onChange={handleChange} placeholder="Empresa / negocio" required className="w-full bg-bgBase p-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
                         <input type="tel" name="whatsapp" value={formData.whatsapp} onChange={handleChange} placeholder="WhatsApp" required className="w-full bg-bgBase p-3 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
                       </div>
@@ -476,13 +578,23 @@ export default function Booking() {
                    </div>
                    <div>
                      <h3 className="text-2xl font-medium text-primary mb-2">Tu cita ha sido reservada</h3>
-                     <p className="text-textMuted text-sm px-4">Recibirás un mensaje de confirmación por WhatsApp en unos minutos.</p>
+                     <p className="text-textMuted text-sm px-4 break-words">Recibirás un mensaje de confirmación por WhatsApp en unos minutos.</p>
                    </div>
                    <div className="w-full space-y-3 pt-6 border-t border-gray-100">
-                     <button className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-gray-200 text-sm font-medium text-textMain hover:bg-bgBase transition-colors">
+                     <button
+                       type="button"
+                       onClick={handleAddToGoogleCalendar}
+                       disabled={!canAddCalendar}
+                       className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-gray-200 text-sm font-medium text-textMain hover:bg-bgBase transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                     >
                        <Calendar size={18} /> Agregar a Google Calendar
                      </button>
-                     <button className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-gray-200 text-sm font-medium text-textMain hover:bg-bgBase transition-colors">
+                     <button
+                       type="button"
+                       onClick={handleAddToAppleCalendar}
+                       disabled={!canAddCalendar}
+                       className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-gray-200 text-sm font-medium text-textMain hover:bg-bgBase transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                     >
                        <Calendar size={18} /> Agregar a Apple Calendar
                      </button>
                      <button onClick={() => { setStep(1); setFormData({name: '', email: '', company: '', whatsapp: '', businessType: '', notes: ''}); setSelectedTime(null); }} className="text-xs text-textMuted hover:text-primary mt-4 underline underline-offset-2">
@@ -572,9 +684,9 @@ export default function Booking() {
                       <div className="w-9 h-9 rounded-lg bg-bgBase text-primary flex items-center justify-center">
                         <channel.icon size={17} />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs uppercase tracking-wide text-textMuted">{channel.title}</p>
-                        <p className="text-sm font-medium text-textMain">{channel.value}</p>
+                        <p className="text-sm font-medium text-textMain break-all">{channel.value}</p>
                       </div>
                     </div>
                     <ArrowRight size={16} className="text-textMuted" />

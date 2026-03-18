@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, CalendarDays, Users, BarChart3, Settings, 
-  User, LogOut, Search, Clock, Save // <-- Agregamos Clock y Save
+  User, LogOut, Search, Clock, Save, Menu, X
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // 1. ESTADO PARA LA CONFIGURACIÓN DEL NEGOCIO
   const [businessSettings, setBusinessSettings] = useState({
@@ -135,28 +136,55 @@ export default function Dashboard() {
     }
   };
 
+  const navigationItems = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'agenda', icon: CalendarDays, label: 'Agenda' },
+    { id: 'clientes', icon: Users, label: 'Clientes' },
+    { id: 'reportes', icon: BarChart3, label: 'Reportes' },
+    { id: 'configuracion', icon: Settings, label: 'Configuración' },
+  ];
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setIsSidebarOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-bgBase flex">
+    <div className="min-h-screen bg-bgBase flex relative">
+      {isSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Cerrar menú lateral"
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/35 z-30 md:hidden"
+        />
+      )}
       
       {/* BARRA LATERAL */}
-      <aside className="w-64 bg-surface border-r border-gray-200 hidden md:flex flex-col">
-        <div className="h-20 flex items-center px-8 border-b border-gray-100">
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-72 md:w-64 bg-surface border-r border-gray-200 flex flex-col transform transition-transform duration-300 md:static md:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="h-20 flex items-center justify-between px-6 md:px-8 border-b border-gray-100">
           <Link to="/" className="text-3xl font-bold tracking-tighter text-primary">
             QDS<span className="text-textMuted text-sm">.</span>
           </Link>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden w-9 h-9 rounded-lg hover:bg-bgBase text-textMain flex items-center justify-center"
+            aria-label="Cerrar menú"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          {[
-            { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-            { id: 'agenda', icon: CalendarDays, label: 'Agenda' },
-            { id: 'clientes', icon: Users, label: 'Clientes' },
-            { id: 'reportes', icon: BarChart3, label: 'Reportes' },
-            { id: 'configuracion', icon: Settings, label: 'Configuración' },
-          ].map((item) => (
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {navigationItems.map((item) => (
             <button 
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => handleTabChange(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
                 activeTab === item.id ? 'bg-primary text-surface shadow-sm' : 'text-textMuted hover:text-textMain hover:bg-bgBase'
               }`}
@@ -180,9 +208,17 @@ export default function Dashboard() {
       {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        <header className="h-20 bg-surface flex items-center justify-between px-8 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold text-primary">{getHeaderTitle()}</h1>
+        <header className="h-20 bg-surface flex items-center justify-between px-4 sm:px-6 lg:px-8 border-b border-gray-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden w-10 h-10 rounded-lg bg-bgBase flex items-center justify-center text-textMain hover:bg-gray-200 transition-colors"
+              aria-label="Abrir menú"
+            >
+              <Menu size={20} />
+            </button>
+            <h1 className="text-xl sm:text-2xl font-semibold text-primary truncate">{getHeaderTitle()}</h1>
             {activeTab === 'dashboard' && <span className="text-textMuted font-medium text-lg hidden sm:inline">Admin</span>}
           </div>
           <button className="w-10 h-10 bg-bgBase rounded-full flex items-center justify-center text-textMain hover:bg-gray-200 transition-colors">
@@ -190,7 +226,7 @@ export default function Dashboard() {
           </button>
         </header>
 
-        <div className="flex-1 overflow-auto p-8">
+        <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-5xl mx-auto space-y-8">
             
             {/* VISTAS: DASHBOARD Y AGENDA */}
@@ -348,7 +384,7 @@ export default function Dashboard() {
                   <div className="p-6 space-y-6">
                     <div>
                       <h3 className="text-sm font-semibold text-primary mb-4 flex items-center gap-2"><Clock size={16}/> Horarios de Atención</h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs text-textMuted mb-1">Hora de Apertura</label>
                           <input 
