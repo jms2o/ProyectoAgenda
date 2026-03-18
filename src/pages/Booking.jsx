@@ -5,6 +5,10 @@ import { db } from '../config/firebase';
 // 1. Importamos las herramientas de animación
 import { motion, AnimatePresence } from 'framer-motion';
 
+const CONTACT_PHONE_RAW = '526691596984';
+const CONTACT_PHONE_DISPLAY = '+52 669 159 6984';
+const CONTACT_EMAIL = 'joelmartinezs11.jm@gmail.com';
+
 export default function Booking() {
   const MotionDiv = motion.div;
   const [step, setStep] = useState(1);
@@ -100,20 +104,20 @@ export default function Booking() {
   const contactChannels = [
     {
       title: 'WhatsApp',
-      value: '+52 614 000 0000',
-      href: 'https://wa.me/526140000000',
+      value: CONTACT_PHONE_DISPLAY,
+      href: `https://wa.me/${CONTACT_PHONE_RAW}`,
       icon: MessageCircle
     },
     {
       title: 'Correo',
-      value: 'contacto@qdsi.mx',
-      href: 'mailto:contacto@qdsi.mx',
+      value: CONTACT_EMAIL,
+      href: `mailto:${CONTACT_EMAIL}`,
       icon: Mail
     },
     {
       title: 'Teléfono',
-      value: '+52 614 000 0000',
-      href: 'tel:+526140000000',
+      value: CONTACT_PHONE_DISPLAY,
+      href: `tel:+${CONTACT_PHONE_RAW}`,
       icon: Phone
     }
   ];
@@ -550,10 +554,10 @@ export default function Booking() {
                 Escríbenos y te ayudamos a definir un sistema hecho a tu medida para citas, clientes y seguimiento.
               </p>
               <div className="flex flex-wrap gap-3">
-                <a href="mailto:contacto@qdsi.mx" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-surface text-primary text-sm font-medium hover:bg-white/90 transition-all">
+                <a href={`mailto:${CONTACT_EMAIL}`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-surface text-primary text-sm font-medium hover:bg-white/90 transition-all">
                   Enviar correo <Mail size={16} />
                 </a>
-                <a href="https://wa.me/526140000000" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium hover:bg-white/10 transition-all">
+                <a href={`https://wa.me/${CONTACT_PHONE_RAW}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/30 text-sm font-medium hover:bg-white/10 transition-all">
                   Escribir por WhatsApp <MessageCircle size={16} />
                 </a>
               </div>
